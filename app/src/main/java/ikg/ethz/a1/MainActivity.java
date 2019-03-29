@@ -1,7 +1,6 @@
 package ikg.ethz.a1;
 
 import android.Manifest;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -10,37 +9,25 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.media.Image;
-import android.os.Environment;
-import android.os.Parcelable;
-import android.support.constraint.ConstraintLayout;
+import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.RotateAnimation;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.IllegalFormatCodePointException;
 import java.util.List;
 
 
@@ -114,6 +101,12 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 
+        // load POIs from the Pois.csv file
+        loadPOI(POIs);
+        POIs.add(new POI("Hexagon", "POI6", 8.507212, 47.408039));
+        Log.d("MainActivity", "ended loading " + POIs.size() + " POIs");
+
+
     }
 
     @Override
@@ -123,10 +116,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             //mLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 5, this);
         }
         Log.d("onStart", "permission checked: "+ checkLocationPermission()+"; "+checkWritePermission());
-        // load POIs from the Pois.csv file
-        loadPOI(POIs);
-        POIs.add(new POI("Hexagon", "POI6", 8.507212, 47.408039));
-        Log.d("MainActivity", "ended loading " + POIs.size() + " POIs");
 
         super.onStart();
     }
@@ -164,9 +153,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     protected void onStop() {
 
         mLocationManager.removeUpdates(this);
-        outputFiles();
-        POIs = new ArrayList<>();
-
         super.onStop();
     }
 
@@ -300,7 +286,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         } else if (appStatus == 2){
             // TODO Tracking mode implementation
             // TODO Notify user that he is in TRACKING MODE, and ends tracking when he clicks on the stop button on the snackbar
-            Trajectories.add(new Trajectory(USER_ID, Tracks.size(), new Timestamp(location.getTime()), location.getLongitude(), location.getLatitude(), location.getAltitude(),Float.valueOf(temperature.getText().toString())));
+            Trajectory newPoint = new Trajectory(USER_ID, Tracks.size(), new Timestamp(location.getTime()), location.getLongitude(), location.getLatitude(), location.getAltitude(),Float.valueOf(temperature.getText().toString()));
+            Trajectories.add(newPoint);
+            newPoint.outputFiles();
 
             // TODO Find the target POI
             POI origin = Tracks.get(Tracks.size()-1).getStartPOI();
@@ -333,6 +321,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
                 int lastTrack = Tracks.size()-1;
                 Tracks.get(lastTrack).setEndPOI(end);
                 Tracks.get(lastTrack).setEndTime(new Timestamp(location.getTime()));
+
+                // Save this track
+                Tracks.get(lastTrack).outputFiles();
+
                 // TODO Summarize trip, back to initial stage
                 final Snackbar summary = Snackbar.make(mainLayout,
                         "Finished tracking from" + origin.getName() + " to " + end.getName() + "! Totoal duration: " + Tracks.get(lastTrack).duration() + ". Do you want to start a new track with this POI as the origin?", Snackbar.LENGTH_INDEFINITE)
@@ -373,9 +365,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
         }
 
-
-
-        }
+    }
 
 
     @Override
@@ -493,89 +483,4 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         img.startAnimation(ra);
     }
 
-    private void outputFiles() {
-        // Saving users input to a CSV file
-        if(Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
-            try{
-                checkWritePermission();
-                Log.d("FileLog", "Permission = " + ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE));
-                File directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                Log.d("FileLog", "start writing trajectory at "+directory);
-
-                File file = new File();
-
-                if (!file.mkdirs()) {
-                    Log.e("FileLog", "Directory not created");
-                }
-
-                FileOutputStream outputStream = new FileOutputStream(file, true);
-                PrintWriter writer = new PrintWriter(outputStream);
-                Log.d("FileLog", "start writing trajectory");
-                while (!Trajectories.isEmpty()) {
-                    Trajectory temp = Trajectories.get(0);
-                    writer.print(temp.getUser_id() + ",");
-                    writer.print(temp.getTrack_id() + ",");
-                    writer.print(temp.getTime() + ",");
-                    writer.print(temp.getLongitude() + ",");
-                    writer.print(temp.getLatitude() + ",");
-                    writer.print(temp.getAltitude() + ",");
-                    writer.println(temp.getTemperature());
-                    Trajectories.remove(0);
-                }
-                writer.close();
-                outputStream.close();
-                Log.e("FileLog", "Trajectories.csv Saved :  " + file.getPath());
-
-                file = new File(directory, "Tracks.csv");
-                outputStream = new FileOutputStream(file, true);
-                writer = new PrintWriter(outputStream);
-
-                while (!Tracks.isEmpty()) {
-                    Track temp = Tracks.get(0);
-                    writer.print(temp.getUser_id() + ",");
-                    writer.print(temp.getTrack_id() + ",");
-                    writer.print(temp.getStartPOI() + ",");
-                    writer.print(temp.getEndPOI() + ",");
-                    writer.println(temp.duration());
-                    Tracks.remove(0);
-                }
-                writer.close();
-                outputStream.close();
-                Log.e("FileLog", "Tracks.csv Saved :  " + file.getPath());
-
-            }catch(IOException e){
-                Log.e("FileLog", "File to write file");
-            }
-        }else{
-            Log.e("FileLog", "SD card not mounted");
-        }
-    }
-/*
-    private void stopTracking(double distance, int index, Location location) {
-        double currentDistance = 0;
-        for (int i = 0; i < POIs.size(); i++) {
-            if (i == index) continue;
-            if ((currentDistance = location.distanceTo(POIs.get(i).getLocation())) < minDistance) {
-                minDistance = currentDistance;
-                index = i;
-            }
-        }
-        // the POI with the minimal distance is the target POI, the index of the target POI is recorded by index
-        // get the relative angle to the target POI and update the value of angle
-        angle = relativeAngle(location, index);
-
-        // TODO Tracking mode display
-        // TODO If entered, stop tracking, update current track with endPOI and endTime
-        if (minDistance < PROXIMITY) {
-            Tracks.get(-1).setEndPOI(POIs.get(index));
-            Tracks.get(-1).setEndTime(new Timestamp(location.getTime()));
-            // TODO Summarize trip, back to initial stage
-            Snackbar snackbar = Snackbar.make(mainLayout,
-                    "Finished tracking from" + Tracks.get(-1).getStartPOI().getName() + " to " + Tracks.get(-1).getEndPOI().getName() + "! Totoal duration: " + Tracks.get(-1).duration(), Snackbar.LENGTH_SHORT);
-            snackbar.show();
-            appStatus = 1;
-        }
-
-    }
-*/
 }

@@ -1,5 +1,14 @@
 package ikg.ethz.a1;
 
+import android.Manifest;
+import android.os.Environment;
+import android.support.v4.app.ActivityCompat;
+import android.util.Log;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.sql.Time;
 import java.sql.Timestamp;
 
@@ -77,5 +86,39 @@ public class Trajectory {
 
     public void setTemperature(float temperature) {
         this.temperature = temperature;
+    }
+
+    public void outputFiles() {
+        // Saving users input to a CSV file
+        if(Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
+            try{
+                Log.d("FileLog", "start writing trajectory ");
+
+                File directory = Environment.getExternalStorageDirectory();
+
+                File file = new File (directory, "trajectories.csv");
+
+                FileOutputStream outputStream = new FileOutputStream(file, true);
+                PrintWriter writer = new PrintWriter(outputStream);
+
+                Log.d("FileLog", "start writing trajectory");
+                writer.print(user_id + ",");
+                writer.print(track_id + ",");
+                writer.print(time + ",");
+                writer.print(longitude + ",");
+                writer.print(latitude + ",");
+                writer.print(altitude + ",");
+                writer.println(temperature);
+
+                writer.close();
+                outputStream.close();
+                Log.e("FileLog", "trajectories.csv Saved :  " + file.getPath());
+
+            }catch(IOException e){
+                Log.e("FileLog", "File to write trajectories");
+            }
+        }else{
+            Log.e("FileLog", "SD card not mounted");
+        }
     }
 }

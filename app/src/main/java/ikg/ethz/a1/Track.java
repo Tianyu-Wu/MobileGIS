@@ -1,5 +1,14 @@
 package ikg.ethz.a1;
 
+import android.Manifest;
+import android.os.Environment;
+import android.support.v4.app.ActivityCompat;
+import android.util.Log;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.sql.Timestamp;
 
 public class Track {
@@ -73,5 +82,37 @@ public class Track {
 
     public double duration() {
         return endTime.getTime() - startTime.getTime();
+    }
+
+    public void outputFiles() {
+        // Saving users input to a CSV file
+        if(Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
+            try{
+                Log.d("FileLog", "start writing tracks ");
+
+                File directory = Environment.getExternalStorageDirectory();
+
+                File file = new File (directory, "tracks.csv");
+
+                FileOutputStream outputStream = new FileOutputStream(file, true);
+                PrintWriter writer = new PrintWriter(outputStream);
+
+                Log.d("FileLog", "start writing trajectory");
+                writer.print(user_id + ",");
+                writer.print(track_id + ",");
+                writer.print(startPOI.getName() + ",");
+                writer.print(endPOI.getName() + ",");
+                writer.print(duration() + ",");
+
+                writer.close();
+                outputStream.close();
+                Log.e("FileLog", "tracks.csv Saved :  " + file.getPath());
+
+            }catch(IOException e){
+                Log.e("FileLog", "File to write tracks");
+            }
+        }else{
+            Log.e("FileLog", "SD card not mounted");
+        }
     }
 }
