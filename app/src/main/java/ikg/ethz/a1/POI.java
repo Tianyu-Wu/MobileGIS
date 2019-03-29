@@ -34,4 +34,20 @@ public class POI {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
 }
